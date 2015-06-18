@@ -17,7 +17,7 @@ train_subject <- read.table("./train/subject_train.txt")
 nrow(test_subject)
 nrow(train_subject)
 
-##Readng the test and train data
+##Read the test and train data
 test <- read.table("./test/X_test.txt",header=F)
 train <- read.table("./train/X_train.txt",header=F)
 
@@ -28,26 +28,23 @@ dim(train)
 names(test) <- features[,2]
 names(train) <- features[,2]
 
-colnames(test_dat)
-colnames(test_dat)[562:563] <- c("subject","activity")
-colnames(train_dat)[562:563] <- c("subject","activity")
 
-
-##Cbind the subject with the test data
+##Cbind the subject and activity number with test and train data
 test_dat <- cbind(test,test_subject,test_labels)
 train_dat <- cbind(train,train_subject,train_labels)
 
 dim(test_dat)
 dim(train_dat)
 
-
+#Update the recently added columns with the correct colnames
+colnames(test_dat)
+colnames(test_dat)[562:563] <- c("subject","activity")
+colnames(train_dat)[562:563] <- c("subject","activity")
 
 #1. Merges the training and the test sets to create one data set.
 all_data <- rbind(test_dat,train_dat)
 dim(all_data)
 colnames(all_data)
-colnames(all_data)[562:563] <- c("subject","activity")
-
 
 #2.Extracts only the measurements on the mean and std for each measurement.
 str(features)
@@ -62,6 +59,7 @@ cols <- sort(cols)
 
 # Pick the selected columns
 select_data <- all_data[,cols]
+#Append the subject and activity coulmns
 select_data <- cbind(select_data, all_data[,562:563])
 str(select_data)
 
@@ -76,28 +74,43 @@ unique(select_data[,"activity"])
 colnames(select_data)
 
 #5. From the data set in step 4, creates a second, independent tidy data set 
-with the average of each variable for each activity and each subject.
+#with the average of each variable for each activity and each subject.
 
-library(dplyr)
-library(tidyr)
-
-dim(select_data)
-#Convert the df into dplyr df format for better readability
-tidy_dat <- tbl_df(select_data)
-
-#Find column means using group by on activity
-
+#Create a new data set agg using aggregate() by subject and activity to find the mean for all the columns
 agg <- aggregate(select_data, by= list (select_data$activity,select_data$subject),FUN=mean)
 colnames(agg)
 colnames(agg)[1:2] <- c("activity", "subject")
 agg <- agg[,-(69:70)]
 
-#Writing data
+##Writing data into txt file
 write.table(agg, file="tidydata.txt",row.name=F,col.names=T, sep="\t")
-by_activity <- tidy_dat %>% group_by(activity)
-act_mean <- by_activity %>% summarise_each(funs(mean))
 
+## Adding codebook.md
+#Pick all columnames to crete codebook
+col_mean <- features[grep("-mean()", features[,2], fixed=T),2]
+col_std <- features[grep("-std()", features[,2], fixed=T),2]
+cols <- c(col_mean, col_std)
 
-#Find column means using group by on subject
-by_subject <- tidy_dat %>% group_by(subject)
-sub_mean <- by_subject %>% summarise_each(funs(mean))
+#Adding description to the column names
+description <- cols
+
+description <- gsub ("-mean()", " Mean value ",description)
+description <- gsub ("-std()", " STD DeviaTion ",description)
+
+description <- gsub ("t", "Time ",description)
+description <- gsub ("f", "FFT ",description)
+
+description <- gsub ("BodyAcc", " Body Acc ",description)
+description <- gsub ("GravityAcc", " Gravity Acc ",description)
+description <- gsub ("BodyAccJerk", " Body Acc Jerk",description)
+description <- gsub ("BodyGyro", " Body Gyro",description)
+description <- gsub ("BodyGyroJerk", " Body Gyro Jerk",description)
+description <- gsub ("BodyAccMag", " Body Acc Magnitude",description)
+description <- gsub ("GravityAccMag", " Gravity Acc Magnitude",description)
+description <- gsub ("BodyAccJerkMag", " Body Acc Jerk Magnitude",description)
+description <- gsub ("BodyGyroMag", " Body Gyro Magnitude",description)
+description <- gsub ("BodyGyroJerkMag", " Body Gyro Jerk Magnitude",description)
+
+code <- paste(cols, description, sep = "  --  ")
+write.table(code, "codebook.md", row.name=F)
+
